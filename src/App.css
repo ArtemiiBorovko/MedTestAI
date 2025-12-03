@@ -1,0 +1,52 @@
+/* Убираем стандартные стили кнопок на мобильных устройствах */
+button {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Убираем выделение при касании на мобильных */
+button:focus {
+  outline: none !important;
+}
+
+/* Специфичные стили для кнопок навигации */
+.nav-button {
+  background: none !important;
+  border: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+}
+
+/* Стили для кнопок навигации (стрелок) */
+.nav-button {
+  background: none !important;
+  border: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  tap-highlight-color: transparent !important;
+  outline: none !important;
+}
+
+/* Убираем подсветку при касании на мобильных */
+.nav-button:active,
+.nav-button:focus {
+  background: none !important;
+  border: none !important;
+  outline: none !important;
+}
+
+/* Анимация для спиннера загрузки */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Стили для ИИ чата */
+.ai-chat-spinner {
+  animation: spin 1s linear infinite;
+}

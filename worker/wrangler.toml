@@ -1,0 +1,11 @@
+name = "medical-ai-chat"
+compatibility_date = "2023-10-01"
+main = "index.js"
+
+[vars]
+GROQ_API_KEY = "your-groq-api-key-here"  # Замените на реальный ключ
+
+# Пока без KV для простоты
+# [[kv_namespaces]]
+# binding = "MEDICAL_AI_SESSIONS" 
+# id = "your-kv-namespace-id"

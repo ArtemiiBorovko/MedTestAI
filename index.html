@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Medical Test</title>
+    <meta name="application-name" content="Medical Test" />
+    <meta name="apple-mobile-web-app-title" content="Medical Test" />
+
+    <!-- ✅ Добавляем сюда -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#121212" />
+  </head>
+
+  <body style="margin: 0; background-color: #121212">
+    <div id="root"></div>
+    <script type="module" src="/src/index.jsx"></script>
+
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("/sw.js")
+            .then(() => console.log("✅ Service Worker зарегистрирован"))
+            .catch((err) => console.error("❌ Ошибка SW:", err));
+        });
+      }
+    </script>
+  </body>
+</html>
