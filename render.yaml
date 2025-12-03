@@ -1,0 +1,13 @@
+services:
+- type: web
+  name: medical-test-pwa
+  env: node
+  buildCommand: npm ci && npm run build
+  startCommand: node server.js
+  envVars:
+    - key: GROQ_API_KEY
+      sync: false
+  headers:
+    - path: /*
+      name: Cache-Control
+      value: no-cache
