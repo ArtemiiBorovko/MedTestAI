@@ -23,6 +23,85 @@ const AIChat = ({
   const [touchStartY, setTouchStartY] = useState(0);
   const [touchStartX, setTouchStartX] = useState(0);
 
+  // 🔧 ВАЖНОЕ ИСПРАВЛЕНИЕ: Функция для получения актуального вопроса со страницы
+  const getCurrentQuestionFromScreen = () => {
+    // Если пропс currentQuestion передан и он валиден - используем его
+    if (currentQuestion && currentQuestion.question) {
+      return currentQuestion;
+    }
+
+    // Иначе пытаемся найти вопрос на странице
+    try {
+      // Поиск по структуре вашего приложения
+      const questionElement = document.querySelector("[data-question-id]");
+      if (questionElement) {
+        const questionId = questionElement.getAttribute("data-question-id");
+        const questionText = questionElement.textContent || "";
+
+        // Поиск вариантов ответов
+        const answerElements = document.querySelectorAll("[data-answer-index]");
+        const answers = Array.from(answerElements).map((el) => ({
+          text: el.textContent || "",
+          correct: el.getAttribute("data-correct") === "true",
+        }));
+
+        if (questionText && answers.length > 0) {
+          return {
+            id: questionId || Date.now(),
+            question: questionText.trim(),
+            answers: answers,
+          };
+        }
+      }
+
+      // Альтернативный поиск - по структуре вашего интерфейса
+      const questionHeader = document.querySelector(
+        'h1, h2, h3, .question-text, [class*="question"]',
+      );
+      if (questionHeader) {
+        return {
+          id: Date.now(),
+          question: questionHeader.textContent.trim(),
+          answers: [],
+        };
+      }
+    } catch (error) {
+      console.error("Ошибка при получении вопроса:", error);
+    }
+
+    // Если ничего не нашли, возвращаем пропс или null
+    return currentQuestion;
+  };
+
+  // Обновленная функция для кнопки "Объяснить вопрос"
+  const handleExplainQuestion = async () => {
+    const actualQuestion = getCurrentQuestionFromScreen();
+
+    if (!actualQuestion || !actualQuestion.question) {
+      alert(
+        "Не удалось найти текущий вопрос на странице. Пожалуйста, убедитесь, что вы находитесь на экране с вопросом.",
+      );
+      return;
+    }
+
+    const fullQuestion = `Объясни вопрос: "${actualQuestion.question}"
+
+Варианты ответов:
+${
+  actualQuestion.answers && actualQuestion.answers.length > 0
+    ? actualQuestion.answers.map((a, idx) => `${idx + 1}) ${a.text}`).join("\n")
+    : "Варианты ответов не найдены"
+}
+
+Пожалуйста, объясни:
+1. Почему правильный ответ верен
+2. Почему остальные варианты неверны
+3. Какие медицинские концепции лежат в основе
+4. Задай уточняющий вопрос для проверки моего понимания`;
+
+    await sendMessage(fullQuestion);
+  };
+
   // Загружаем API ключ и проверяем представление
   useEffect(() => {
     const key =
@@ -43,13 +122,15 @@ const AIChat = ({
 
   // Автоматическое предложение помощи (исправлено - только один раз на вопрос)
   useEffect(() => {
+    const actualQuestion = getCurrentQuestionFromScreen();
+
     if (
       isAnswerCorrect === false &&
       !isOpen &&
-      currentQuestion &&
-      lastHelpedQuestionId !== currentQuestion.id
+      actualQuestion &&
+      lastHelpedQuestionId !== actualQuestion.id
     ) {
-      setLastHelpedQuestionId(currentQuestion.id);
+      setLastHelpedQuestionId(actualQuestion.id);
 
       setTimeout(() => {
         if (
@@ -63,7 +144,7 @@ const AIChat = ({
         }
       }, 1500);
     }
-  }, [isAnswerCorrect, currentQuestion, isOpen, lastHelpedQuestionId]);
+  }, [isAnswerCorrect, isOpen, lastHelpedQuestionId]);
 
   // Инициализация голосового ввода
   useEffect(() => {
@@ -195,15 +276,23 @@ const AIChat = ({
   };
 
   const handleAutoHelp = async () => {
-    const helpMessage = `Объясни вопрос: "${currentQuestion?.question}"
+    const actualQuestion = getCurrentQuestionFromScreen();
+
+    if (!actualQuestion) return;
+
+    const helpMessage = `Объясни вопрос: "${actualQuestion.question}"
 
 Варианты ответов:
-${currentQuestion.answers.map((a, idx) => `${idx + 1}) ${a.text}`).join("\n")}
+${
+  actualQuestion.answers && actualQuestion.answers.length > 0
+    ? actualQuestion.answers.map((a, idx) => `${idx + 1}) ${a.text}`).join("\n")
+    : "Варианты ответов не найдены"
+}
 
 ${
   userAnswer === null
     ? 'Студент ответил "Не знаю".'
-    : `Студент выбрал: ${userAnswer + 1}) ${currentQuestion.answers[userAnswer]?.text}.`
+    : `Студент выбрал: ${userAnswer + 1}) ${actualQuestion.answers[userAnswer]?.text}.`
 }
 
 Объясни подробно:
@@ -272,11 +361,16 @@ ${
       const messagesToSend = [{ role: "system", content: systemPrompt }];
 
       // Добавляем контекст вопроса если есть
-      if (currentQuestion) {
+      const actualQuestion = getCurrentQuestionFromScreen();
+      if (actualQuestion) {
         const questionContext = `Контекст текущего вопроса:
-Вопрос: ${currentQuestion.question}
+Вопрос: ${actualQuestion.question}
 Варианты ответов:
-${currentQuestion.answers.map((a, idx) => `${idx + 1}) ${a.text}`).join("\n")}
+${
+  actualQuestion.answers && actualQuestion.answers.length > 0
+    ? actualQuestion.answers.map((a, idx) => `${idx + 1}) ${a.text}`).join("\n")
+    : "Варианты ответов не найдены"
+}
 Ответ студента: ${userAnswer === null ? "Не знаю" : `Вариант ${userAnswer + 1}`}
 Правильность: ${isAnswerCorrect === null ? "Не проверено" : isAnswerCorrect ? "Правильно" : "Неправильно"}`;
 
@@ -303,11 +397,11 @@ ${currentQuestion.answers.map((a, idx) => `${idx + 1}) ${a.text}`).join("\n")}
         body: JSON.stringify({
           message: messageText,
           context: {
-            currentQuestion: currentQuestion
+            currentQuestion: actualQuestion
               ? {
-                  id: currentQuestion.id,
-                  question: currentQuestion.question,
-                  answers: currentQuestion.answers,
+                  id: actualQuestion.id,
+                  question: actualQuestion.question,
+                  answers: actualQuestion.answers,
                   userAnswer: userAnswer,
                   isCorrect: isAnswerCorrect,
                 }
@@ -912,53 +1006,39 @@ ${currentQuestion.answers.map((a, idx) => `${idx + 1}) ${a.text}`).join("\n")}
                   flexShrink: 0,
                 }}
               >
-                {currentQuestion && (
-                  <button
-                    onClick={() => {
-                      const fullQuestion = `Объясни вопрос: "${currentQuestion.question}"
-
-Варианты ответов:
-${currentQuestion.answers.map((a, idx) => `${idx + 1}) ${a.text}`).join("\n")}
-
-Пожалуйста, объясни:
-1. Почему правильный ответ верен
-2. Почему остальные варианты неверны
-3. Какие медицинские концепции лежат в основе
-4. Задай уточняющий вопрос для проверки моего понимания`;
-                      sendMessage(fullQuestion);
-                    }}
-                    disabled={isLoading || !apiKey}
-                    style={{
-                      padding: "10px 16px",
-                      borderRadius: "20px",
-                      border: "none",
-                      backgroundColor: apiKey ? "#4CAF50" : "#666",
-                      color: "white",
-                      cursor: apiKey ? "pointer" : "not-allowed",
-                      fontSize: "13px",
-                      flex: "1 0 auto",
-                      minWidth: "140px",
-                      fontWeight: "500",
-                      transition: "all 0.2s",
-                      outline: "none",
-                      width: "100%", // Такая же ширина как у textarea
-                    }}
-                    onMouseOver={(e) => {
-                      if (apiKey && !isLoading) {
-                        e.target.style.backgroundColor = "#45a049";
-                        e.target.style.transform = "scale(1.03)";
-                      }
-                    }}
-                    onMouseOut={(e) => {
-                      if (apiKey && !isLoading) {
-                        e.target.style.backgroundColor = "#4CAF50";
-                        e.target.style.transform = "scale(1)";
-                      }
-                    }}
-                  >
-                    Объяснить вопрос
-                  </button>
-                )}
+                <button
+                  onClick={handleExplainQuestion}
+                  disabled={isLoading || !apiKey}
+                  style={{
+                    padding: "10px 16px",
+                    borderRadius: "20px",
+                    border: "none",
+                    backgroundColor: apiKey ? "#4CAF50" : "#666",
+                    color: "white",
+                    cursor: apiKey ? "pointer" : "not-allowed",
+                    fontSize: "13px",
+                    flex: "1 0 auto",
+                    minWidth: "140px",
+                    fontWeight: "500",
+                    transition: "all 0.2s",
+                    outline: "none",
+                    width: "100%",
+                  }}
+                  onMouseOver={(e) => {
+                    if (apiKey && !isLoading) {
+                      e.target.style.backgroundColor = "#45a049";
+                      e.target.style.transform = "scale(1.03)";
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (apiKey && !isLoading) {
+                      e.target.style.backgroundColor = "#4CAF50";
+                      e.target.style.transform = "scale(1)";
+                    }
+                  }}
+                >
+                  Объяснить вопрос
+                </button>
                 <div style={{ display: "flex", gap: "10px", width: "100%" }}>
                   <button
                     onClick={clearChat}
