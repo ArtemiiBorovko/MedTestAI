@@ -1,5 +1,5 @@
 // ========== КОНФИГУРАЦИЯ ==========
-const CACHE_NAME = "medical-test-full-cache-v1";
+const CACHE_NAME = "medical-test-full-cache-v2";
 const OFFLINE_URL = "/index.html";
 
 // 1. Ядро приложения (файлы БЕЗ хэшей)
@@ -28,26 +28,46 @@ const ALL_ASSETS = [...CORE_ASSETS, ...QUESTION_IMAGES];
 self.addEventListener("install", (event) => {
   console.log("[SW] Установка: кэшируем ВСЕ ресурсы приложения");
 
+  // Пропускаем ожидание и активируем сразу
+  self.skipWaiting();
+
+  // Запускаем кэширование, но не блокируем установку
   event.waitUntil(
     caches
       .open(CACHE_NAME)
       .then((cache) => {
         console.log(`[SW] Кэшируем ${ALL_ASSETS.length} файлов...`);
 
-        // Пытаемся кэшировать всё, но не падаем при ошибках
+        // Используем более надежный метод кэширования
         return Promise.allSettled(
           ALL_ASSETS.map((url) =>
-            cache
-              .add(url)
-              .catch((err) =>
-                console.warn(`[SW] Не удалось кэшировать ${url}:`, err.message),
-              ),
+            fetch(url, { mode: "no-cors" })
+              .then((response) => {
+                if (response.ok || response.type === "opaque") {
+                  return cache.put(url, response);
+                } else {
+                  console.warn(
+                    `[SW] Пропускаем ${url}: статус ${response.status}`,
+                  );
+                  return null;
+                }
+              })
+              .catch((err) => {
+                console.warn(`[SW] Ошибка при загрузке ${url}:`, err.message);
+                return null;
+              }),
           ),
-        );
+        ).then((results) => {
+          const successful = results.filter(
+            (r) => r.status === "fulfilled" && r.value,
+          );
+          console.log(
+            `[SW] Успешно закэшировано ${successful.length}/${ALL_ASSETS.length} файлов`,
+          );
+        });
       })
-      .then(() => {
-        console.log("[SW] Все ресурсы закэшированы (или попытка завершена)");
-        return self.skipWaiting();
+      .catch((err) => {
+        console.error("[SW] Критическая ошибка при установке:", err);
       }),
   );
 });
@@ -57,9 +77,9 @@ self.addEventListener("activate", (event) => {
   console.log("[SW] Активация новой версии");
 
   event.waitUntil(
-    caches
-      .keys()
-      .then((cacheNames) => {
+    Promise.all([
+      // Очищаем старые кэши
+      caches.keys().then((cacheNames) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
             if (cacheName !== CACHE_NAME) {
@@ -68,8 +88,12 @@ self.addEventListener("activate", (event) => {
             }
           }),
         );
-      })
-      .then(() => self.clients.claim()),
+      }),
+      // Берём управление над всеми клиентами
+      self.clients.claim(),
+    ]).then(() => {
+      console.log("[SW] Активация завершена");
+    }),
   );
 });
 
@@ -78,75 +102,59 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   const url = new URL(request.url);
 
-  // ИГНОРИРУЕМ неподдерживаемые схемы (chrome-extension:, file:, etc)
+  // ИГНОРИРУЕМ неподдерживаемые схемы
   if (url.protocol === "chrome-extension:" || url.protocol === "file:") {
-    return; // Просто выходим, не обрабатываем такие запросы
+    return;
   }
 
   // Пропускаем не-GET и API запросы
   if (request.method !== "GET" || url.pathname.startsWith("/api/")) return;
 
-  // Для навигации
+  // Для навигации - всегда пытаемся загрузить свежую версию
   if (request.mode === "navigate") {
     event.respondWith(fetch(request).catch(() => caches.match(OFFLINE_URL)));
     return;
   }
 
-  // ОСОБАЯ ЛОГИКА ДЛЯ /assets/ файлов (JS/CSS с хэшами)
-  if (url.pathname.startsWith("/assets/")) {
-    event.respondWith(
-      caches.match(request).then((cached) => {
-        // Если есть в кэше - отдаём
-        if (cached) return cached;
+  // Для остальных запросов используем стратегию "Cache First, then Network"
+  event.respondWith(
+    caches.match(request).then((cachedResponse) => {
+      // Если есть в кэше - возвращаем
+      if (cachedResponse) {
+        return cachedResponse;
+      }
 
-        // Если нет - грузим из сети и кэшируем на будущее
-        return fetch(request).then((response) => {
+      // Если нет в кэше - загружаем из сети
+      return fetch(request)
+        .then((response) => {
+          // Если ответ успешен - кэшируем
           if (response.ok) {
             const clone = response.clone();
             caches
               .open(CACHE_NAME)
-              .then((cache) => cache.put(request, clone))
-              .catch((err) =>
-                console.warn("[SW] Не удалось кэшировать asset:", err.message),
-              );
+              .then((cache) => {
+                try {
+                  cache.put(request, clone);
+                } catch (err) {
+                  console.warn("[SW] Не удалось добавить в кэш:", err.message);
+                }
+              })
+              .catch(() => {
+                /* Игнорируем ошибки кэширования */
+              });
           }
           return response;
+        })
+        .catch(() => {
+          // Если не удалось загрузить и это картинка - возвращаем заглушку
+          if (request.destination === "image") {
+            return caches.match("/icon-192.png");
+          }
+          return new Response("Оффлайн", {
+            status: 503,
+            headers: { "Content-Type": "text/plain; charset=utf-8" },
+          });
         });
-      }),
-    );
-    return;
-  }
-
-  // Для всех остальных ресурсов (картинки, шрифты и т.д.)
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      return (
-        cached ||
-        fetch(request)
-          .then((response) => {
-            // Кэшируем успешные ответы для будущего использования
-            if (response.ok) {
-              const clone = response.clone();
-              caches
-                .open(CACHE_NAME)
-                .then((cache) => cache.put(request, clone))
-                .catch((err) =>
-                  console.warn(
-                    "[SW] Не удалось кэшировать ресурс:",
-                    err.message,
-                  ),
-                );
-            }
-            return response;
-          })
-          .catch(() => {
-            // Для изображений - заглушка
-            if (request.destination === "image") {
-              return caches.match("/icon-192.png");
-            }
-            return new Response("Оффлайн", { status: 503 });
-          })
-      );
     }),
   );
 });
