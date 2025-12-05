@@ -4,13 +4,61 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Medical Test AI</title>
+
+    <!-- ✅ 1. ОБЩИЙ МАНИФЕСТ -->
     <link rel="manifest" href="/manifest.json" />
+
+    <!-- ✅ 2. ЦВЕТ ТЕМЫ (одинаков для всех) -->
     <meta name="theme-color" content="#121212" />
-    <link rel="icon" href="/icon-192.png" type="image/png" />
+
+    <!-- ✅ 3. ИКОНКИ ДЛЯ ВСЕХ ПЛАТФОРМ -->
+    <!-- Основные favicon -->
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- PWA иконки (для Android Chrome и других) -->
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+
+    <!-- ✅ 4. ANDROID CHROME (ВАЖНО!) -->
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- ✅ 5. iOS (сохраняем, но отдельно) -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="MedTest" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon-192.png" />
+
+    <!-- ✅ 6. MICROSOFT (опционально) -->
+    <meta name="msapplication-TileColor" content="#121212" />
+    <meta name="msapplication-TileImage" content="/icon-192.png" />
   </head>
+
   <body style="margin: 0; background-color: #121212">
     <div id="root"></div>
     <script type="module" src="/src/index.jsx"></script>
+
+    <script>
+      // Регистрация Service Worker с улучшенной обработкой
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("/sw.js")
+            .then((registration) => {
+              console.log("✅ SW зарегистрирован:", registration.scope);
+
+              // Проверка обновлений каждые 30 минут
+              setInterval(() => registration.update(), 1800000);
+            })
+            .catch((error) => {
+              console.error("❌ Ошибка регистрации SW:", error);
+            });
+        });
+      }
+    </script>
   </body>
 </html>

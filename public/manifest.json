@@ -1,10 +1,13 @@
 {
   "name": "Medical Test AI",
   "short_name": "MedTest",
+  "description": "Медицинские тесты с ИИ-помощником",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#121212",
   "theme_color": "#121212",
+  "orientation": "portrait",
   "icons": [
     {
       "src": "/icon-192.png",
