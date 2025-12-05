@@ -1009,6 +1009,7 @@ function TestScreen({ setCurrentScreen }) {
           Начать сначала
         </button>
       </div>
+      {/* ИИ Чат - передаем текущий вопрос из questionsData */}
       <AIChat
         currentQuestion={
           currentQuestion < questionsData.length

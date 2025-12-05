@@ -1,28 +1,20 @@
 {
   "name": "Medical Test AI",
-  "short_name": "MedTestAI",
-  "description": "Медицинские тесты с ИИ-помощником Гиппократ",
+  "short_name": "MedTest",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#121212",
   "theme_color": "#121212",
-  "orientation": "portrait",
-  "scope": "/",
-  "categories": ["education", "medical", "productivity"],
-  "lang": "ru-RU",
-  "dir": "ltr",
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
   ]
 }

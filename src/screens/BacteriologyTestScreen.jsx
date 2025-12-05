@@ -906,15 +906,16 @@ function BacteriologyTestScreen({ setCurrentScreen }) {
       </div>
       <AIChat
         currentQuestion={
-          currentQuestion < questionsData.length
-            ? questionsData[currentQuestion]
+          currentQuestion < categoryQuestions.length
+            ? categoryQuestions[currentQuestion]
             : null
         }
         userAnswer={selectedAnswer}
         isAnswerCorrect={
-          showAnswer && currentQuestion < questionsData.length
+          showAnswer && currentQuestion < categoryQuestions.length
             ? selectedAnswer !== null
-              ? questionsData[currentQuestion].answers[selectedAnswer].correct
+              ? categoryQuestions[currentQuestion].answers[selectedAnswer]
+                  .correct
               : false
             : null
         }
