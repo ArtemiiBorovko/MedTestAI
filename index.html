@@ -43,7 +43,6 @@
     <script type="module" src="/src/index.jsx"></script>
 
     <script>
-      // Регистрация Service Worker с улучшенной обработкой
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
           navigator.serviceWorker
@@ -51,12 +50,27 @@
             .then((registration) => {
               console.log("✅ SW зарегистрирован:", registration.scope);
 
-              // Проверка обновлений каждые 30 минут
-              setInterval(() => registration.update(), 1800000);
+              // Принудительно активируем новый SW
+              if (registration.waiting) {
+                registration.waiting.postMessage({ type: "SKIP_WAITING" });
+                setTimeout(() => window.location.reload(), 100);
+              }
+
+              // Проверка обновлений каждую минуту
+              setInterval(() => registration.update(), 60000);
             })
             .catch((error) => {
-              console.error("❌ Ошибка регистрации SW:", error);
+              console.error("❌ Ошибка SW:", error);
             });
+        });
+
+        // Автоперезагрузка при обновлении SW
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          if (!refreshing) {
+            refreshing = true;
+            window.location.reload();
+          }
         });
       }
     </script>
