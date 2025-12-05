@@ -78,6 +78,11 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   const url = new URL(request.url);
 
+  // ИГНОРИРУЕМ неподдерживаемые схемы (chrome-extension:, file:, etc)
+  if (url.protocol === "chrome-extension:" || url.protocol === "file:") {
+    return; // Просто выходим, не обрабатываем такие запросы
+  }
+
   // Пропускаем не-GET и API запросы
   if (request.method !== "GET" || url.pathname.startsWith("/api/")) return;
 
@@ -98,7 +103,12 @@ self.addEventListener("fetch", (event) => {
         return fetch(request).then((response) => {
           if (response.ok) {
             const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+            caches
+              .open(CACHE_NAME)
+              .then((cache) => cache.put(request, clone))
+              .catch((err) =>
+                console.warn("[SW] Не удалось кэшировать asset:", err.message),
+              );
           }
           return response;
         });
@@ -119,7 +129,13 @@ self.addEventListener("fetch", (event) => {
               const clone = response.clone();
               caches
                 .open(CACHE_NAME)
-                .then((cache) => cache.put(request, clone));
+                .then((cache) => cache.put(request, clone))
+                .catch((err) =>
+                  console.warn(
+                    "[SW] Не удалось кэшировать ресурс:",
+                    err.message,
+                  ),
+                );
             }
             return response;
           })
